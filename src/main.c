@@ -57,15 +57,17 @@ int main(int argc, char **argv)
 	#endif
 	
 	// Smooth Output Image
-	suavizar(ancho, alto, mejor_imagen);
+	RGB *img_out = (RGB *) malloc(ancho*alto*sizeof(RGB));
+	suavizar(ancho, alto, mejor_imagen, img_out);
 	
 	#ifdef DEBUG
 		// Print Result
-		escribir_ppm(argv[2], ancho, alto, max, mejor_imagen); 
+		escribir_ppm(argv[2], ancho, alto, max, img_out); 
 	#endif
 
 	free(mejor_imagen); // cambiado a después del escribir_ppm
 	free(imagen_objetivo); // añadido por nosotros
+	free(img_out);
 	
 	return(0);
 }

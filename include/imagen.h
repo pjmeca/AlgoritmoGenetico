@@ -7,6 +7,6 @@ typedef struct {
 
 RGB *leer_ppm(const char *, int *, int *, int *);
 void escribir_ppm(const char *, int, int, int, const RGB *);
-void suavizar(int, int, RGB *);
+void suavizar(int, int, RGB *, RGB *);
 
 #endif

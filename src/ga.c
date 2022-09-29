@@ -9,7 +9,7 @@
 
 #define PRINT 1
 
-#define NUM_PIXELS_MUTAR 0.05
+#define NUM_PIXELS_MUTAR 0.1
 
 static int aleatorio(int max) {
 	return (rand() % (max+1));
@@ -89,7 +89,7 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 		diferencia_fitness = -(fitness_actual-fitness_anterior)/fitness_actual*100;
 		
 		// Guardar cada 300 iteraciones para observar el progreso
-		if (PRINT /*&& (g % 300 == 0)*/) {
+		if (PRINT && (g % 300 == 0)) {
 			printf("Generacion %d - ", g);
 			printf("Fitness = %e - ", fitness_actual);
 			printf("Diferencia con Fitness Anterior = %.2e%c\n", diferencia_fitness, 37);
@@ -155,6 +155,7 @@ void fitness(const RGB *objetivo, Individuo *individuo, int num_pixels)
 	// Determina la calidad del individuo (similitud con el objetivo)
 	// calculando la suma de la distancia existente entre los pixeles
 
+	// Con medias --> menos óptimo
 	/*
 	double fitness[3];
 	fitness[0] = fitness[1] = fitness[2] = 0.0;
@@ -170,7 +171,10 @@ void fitness(const RGB *objetivo, Individuo *individuo, int num_pixels)
 
 	double fitness = 0.0;
 	for(int i=0; i<num_pixels; i++){
-		// Distancia euclídea
+		// Suma
+		//fitness += abs((objetivo[i].r-individuo->imagen[i].r) + abs(objetivo[i].g-individuo->imagen[i].g) + abs(objetivo[i].b-individuo->imagen[i].b));
+
+		// Distancia euclídea --> Mejor
 		fitness += sqrt(pow(objetivo[i].r-individuo->imagen[i].r, 2) + pow(objetivo[i].g-individuo->imagen[i].g, 2) + pow(objetivo[i].b-individuo->imagen[i].b, 2));
 	}
 
@@ -185,7 +189,8 @@ void mutar(Individuo *actual, int max, int num_pixels)
 	// la convergencia es muy pequeña, y si es demasiado alto diverge.
 
 	// Píxeles a mutar
-	int num_pixels_mutar = aleatorio(num_pixels*NUM_PIXELS_MUTAR-1);
+	int num_pixels_mutar = aleatorio(num_pixels*NUM_PIXELS_MUTAR); // 0...NUM_PIXELS_MUTAR%
+	//int num_pixels_mutar = num_pixels*NUM_PIXELS_MUTAR; // NUM_PIXELS_MUTAR%
 
 	// Cambiar el valor de los puntos
 	for(int i=0; i<num_pixels_mutar; i++){
