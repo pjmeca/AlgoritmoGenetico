@@ -65,8 +65,8 @@ int main(int argc, char **argv)
 		escribir_ppm(argv[2], ancho, alto, max, img_out); 
 	#endif
 
-	free(mejor_imagen); // cambiado a después del escribir_ppm
-	free(imagen_objetivo); // añadido por nosotros
+	free(mejor_imagen);
+	free(imagen_objetivo);
 	free(img_out);
 	
 	return(0);

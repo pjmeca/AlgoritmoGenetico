@@ -12,7 +12,6 @@ RGB *leer_ppm(const char *file, int *ancho, int *alto, int *max)
 	
 	char c, b[100];
 	int red, green, blue;
-	//unsigned char red, green, blue; añadido por nosotros
 	
 	fd = fopen(file, "r");
 	
@@ -36,14 +35,11 @@ RGB *leer_ppm(const char *file, int *ancho, int *alto, int *max)
 	
 	int size = (*ancho)*(*alto);
 
-	//RGB *imagen = (RGB *) malloc(size*sizeof(char));
-	RGB *imagen = (RGB *) malloc(size * 3*sizeof(char)); // no reservaba lo suficiente
+	RGB *imagen = (RGB *) malloc(size * 3*sizeof(char));
 	assert(imagen);
 	
-	//for(i=0; i<=size; i++) {
-	for(i=0; i<size; i++) { // se salía del array
+	for(i=0; i<size; i++) {
 		n = fscanf(fd, "%d %d %d", &red, &green, &blue);
-		//n = fscanf(fd, "%c %c %c", &red, &green, &blue); // añadido por nosotros
 		assert(n == 3);
 		
 		imagen[i].r = red;
@@ -66,8 +62,7 @@ void escribir_ppm(const char *fichero, int ancho, int alto, int max, const RGB *
 	fprintf(fd, "%d %d\n%d\n", ancho, alto, max);
 	
 	int size = alto*ancho;
-	//for(i=0; i<=size; i++) {
-	for(i=0; i<size; i++) { // añadido por nosotros
+	for(i=0; i<size; i++) {
 		fprintf(fd, "%d %d %d ", imagen[i].r, imagen[i].g, imagen[i].b);
 		if((i+1) % 18 == 0) {
 			fprintf(fd, "\n");
@@ -75,27 +70,6 @@ void escribir_ppm(const char *fichero, int ancho, int alto, int max, const RGB *
 	}
 	fclose(fd);
 }
-/*
-void suavizar(RGB* imagen_in, RGB* imagen_out, int a, int b, int c, int d, int e, int f, int g, int h, int i){
-	
-	RGB pixel1, pixel2, pixel3, pixel4, pixel5, pixel6, pixel7, pixel8, pixel9;
-	
-	pixel1_r = a<0 ? 1 : imagen_in[a];
-	pixel1_g = a<0 ? 1 : imagen_in[a];
-	pixel1_b = a<0 ? 1 : imagen_in[a];
-	pixel2 = b<0 ? 1 : imagen_in[b];
-	pixel3 = c<0 ? 1 : imagen_in[c];
-	pixel4 = d<0 ? 1 : imagen_in[d];
-	pixel5 = imagen_in[e];
-	pixel6 = f<0 ? 1 : imagen_in[f];
-	pixel7 = g<0 ? 1 : imagen_in[g];
-	pixel8 = h<0 ? 1 : imagen_in[h];
-	pixel9 = i<0 ? 1 : imagen_in[i];
-
-	imagen_out[e].r = (pixel1.r + pixel2.r + pixel3.r +pixel4.r + pixel5.r+pixel6.r+pixel7.r+pixel8.r+pixel9.r)/9;
-	imagen_out[e].g = (pixel1.g + pixel2.g + pixel3.g +pixel4.g + pixel5.g+pixel6.g+pixel7.g+pixel8.g+pixel9.g)/9;
-	imagen_out[e].b = (pixel1.b + pixel2.b + pixel3.b +pixel4.b + pixel5.b+pixel6.b+pixel7.b+pixel8.b+pixel9.b)/9;
-}*/
 
 void suavizar(int ancho, int alto, RGB *img, RGB *img_out)
 {
