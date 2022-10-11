@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -O3 -Wall -std=c99 -g -fopenmp
+CFLAGS = -O3 -Wall -std=c99 -g -fopenmp 
 
 N_GEN = 2000
 T_POB = 256

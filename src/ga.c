@@ -13,7 +13,9 @@
 #define NUM_PIXELS_MUTAR 0.01
 #define NUM_ITERACIONES_CONVERGENCIA 200 
 
-#define OMP_FITNESS "SECUENCIAL"
+#define OMP_FITNESS "REDUCTION"
+#define SCHEDULE_STATIC
+#define CHUNK_SIZE 4
 
 static int aleatorio(int max)
 {
@@ -22,6 +24,13 @@ static int aleatorio(int max)
 
 void init_imagen_aleatoria(RGB *imagen, int max, int total)
 {
+	#ifdef SCHEDULE_STATIC
+		#pragma omp parallel for schedule(static, CHUNK_SIZE)
+	#elif defined SCHEDULE_DYNAMIC
+		#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
+	#elif defined SCHEDULE_GUIDED
+		#pragma omp parallel for schedule(guided, CHUNK_SIZE)
+	#endif
 	for (int i = 0; i < total; i++)	// Paralelizable
 	{
 		imagen[i].r = aleatorio(max);
@@ -54,6 +63,13 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 	Individuo **poblacion = (Individuo **)malloc(tam_poblacion * sizeof(Individuo *));
 	assert(poblacion);
 
+	#ifdef SCHEDULE_STATIC
+		#pragma omp parallel for schedule(static, CHUNK_SIZE)
+	#elif defined SCHEDULE_DYNAMIC
+		#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
+	#elif defined SCHEDULE_GUIDED
+		#pragma omp parallel for schedule(guided, CHUNK_SIZE)
+	#endif
 	for (i = 0; i < tam_poblacion; i++) // Paralelizable
 	{
 		poblacion[i] = (Individuo *)malloc(sizeof(Individuo));
@@ -73,7 +89,6 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 	{
 		fitness_anterior = poblacion[0]->fitness;
 
-		// Promocionar a los descendientes de los individuos más aptos
 		for (i = 0; i < (tam_poblacion / 2) - 1; i += 2) // Paralelizable
 		{
 			cruzar(poblacion[i], poblacion[i + 1], poblacion[tam_poblacion / 2 + i], poblacion[tam_poblacion / 2 + i + 1], num_pixels);
@@ -81,7 +96,7 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 
 		// Mutar una parte de la individuos de la población (se decide que muten tam_poblacion/4)
 		mutation_start = tam_poblacion / 4;
-
+	
 		for (i = mutation_start; i < tam_poblacion; i++) // Paralelizable
 		{
 			mutar(poblacion[i], max, num_pixels);
@@ -92,7 +107,7 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 		{
 			fitness(imagen_objetivo, poblacion[i], num_pixels);
 		}
-
+	
 		// Ordenar individuos según la función de bondad (menor "fitness" --> más aptos)
 		qsort(poblacion, tam_poblacion, sizeof(Individuo *), comp_fitness);
 
@@ -137,6 +152,13 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 	memmove(imagen_resultado, poblacion[0]->imagen, num_pixels * sizeof(RGB));
 
 	// Release memory
+	#ifdef SCHEDULE_STATIC
+		#pragma omp parallel for schedule(static, CHUNK_SIZE)
+	#elif defined SCHEDULE_DYNAMIC
+		#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
+	#elif defined SCHEDULE_GUIDED
+		#pragma omp parallel for schedule(guided, CHUNK_SIZE)
+	#endif
 	for (i = 0; i < tam_poblacion; i++) // Paralelizable
 	{
 		free(poblacion[i]->imagen);
