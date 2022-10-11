@@ -76,8 +76,8 @@ void suavizar(int ancho, int alto, RGB *img, RGB *img_out)
 	// Aplicar tecnica "mean-filter" para suavizar la imagen resultante
 
 	// Usar dos bucles for y muchos if con los 9 casos posibles (4 esquinas, 4 laterales o centro)
-	for(int i=0; i<alto*ancho; i+=ancho){
-		for(int j=0; j<ancho; j++){
+	for(int i=0; i<alto*ancho; i+=ancho){ 	// Paralelizable
+		for(int j=0; j<ancho; j++){ 	// Paralelizable
 
 			int p[9] = {i+j-ancho-1, i+j-ancho, i+j-ancho+1, i+j-1, i+j, i+j+1, i+j+ancho-1, i+j+ancho, i+j+ancho+1};
 

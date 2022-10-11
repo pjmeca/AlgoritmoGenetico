@@ -3,14 +3,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <omp.h>
 
 #include "../include/imagen.h"
 #include "../include/ga.h"
 
-#define PRINT 0
+#define PRINT 1
 
 #define NUM_PIXELS_MUTAR 0.01
-#define NUM_ITERACIONES_CONVERGENCIA 20
+#define NUM_ITERACIONES_CONVERGENCIA 200 
+
+#define OMP_FITNESS "SECUENCIAL"
 
 static int aleatorio(int max)
 {
@@ -19,7 +22,7 @@ static int aleatorio(int max)
 
 void init_imagen_aleatoria(RGB *imagen, int max, int total)
 {
-	for (int i = 0; i < total; i++)
+	for (int i = 0; i < total; i++)	// Paralelizable
 	{
 		imagen[i].r = aleatorio(max);
 		imagen[i].g = aleatorio(max);
@@ -51,13 +54,13 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 	Individuo **poblacion = (Individuo **)malloc(tam_poblacion * sizeof(Individuo *));
 	assert(poblacion);
 
-	for (i = 0; i < tam_poblacion; i++)
+	for (i = 0; i < tam_poblacion; i++) // Paralelizable
 	{
 		poblacion[i] = (Individuo *)malloc(sizeof(Individuo));
 		poblacion[i]->imagen = imagen_aleatoria(max, num_pixels);
 	}
 
-	for (i = 0; i < tam_poblacion; i++)
+	for (i = 0; i < tam_poblacion; i++) // Paralelizable
 	{
 		fitness(imagen_objetivo, poblacion[i], num_pixels);
 	}
@@ -71,7 +74,7 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 		fitness_anterior = poblacion[0]->fitness;
 
 		// Promocionar a los descendientes de los individuos más aptos
-		for (i = 0; i < (tam_poblacion / 2) - 1; i += 2)
+		for (i = 0; i < (tam_poblacion / 2) - 1; i += 2) // Paralelizable
 		{
 			cruzar(poblacion[i], poblacion[i + 1], poblacion[tam_poblacion / 2 + i], poblacion[tam_poblacion / 2 + i + 1], num_pixels);
 		}
@@ -79,13 +82,13 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 		// Mutar una parte de la individuos de la población (se decide que muten tam_poblacion/4)
 		mutation_start = tam_poblacion / 4;
 
-		for (i = mutation_start; i < tam_poblacion; i++)
+		for (i = mutation_start; i < tam_poblacion; i++) // Paralelizable
 		{
 			mutar(poblacion[i], max, num_pixels);
 		}
 
 		// Recalcular Fitness
-		for (i = 0; i < tam_poblacion; i++)
+		for (i = 0; i < tam_poblacion; i++) // Paralelizable
 		{
 			fitness(imagen_objetivo, poblacion[i], num_pixels);
 		}
@@ -98,7 +101,7 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 		diferencia_fitness = abs(fitness_actual - fitness_anterior);
 
 		// Guardar cada 300 iteraciones para observar el progreso
-		if (PRINT /*&& (g % 300 == 0)*/)
+		if (PRINT && (g % 300 == 0))
 		{
 			printf("Generacion %d - ", g);
 			printf("Fitness = %e - ", fitness_actual);
@@ -134,7 +137,7 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 	memmove(imagen_resultado, poblacion[0]->imagen, num_pixels * sizeof(RGB));
 
 	// Release memory
-	for (i = 0; i < tam_poblacion; i++)
+	for (i = 0; i < tam_poblacion; i++) // Paralelizable
 	{
 		free(poblacion[i]->imagen);
 		free(poblacion[i]);
@@ -155,14 +158,14 @@ void cruzar(Individuo *padre1, Individuo *padre2, Individuo *hijo1, Individuo *h
 	// Curzamos los genes
 	Individuo *p1 = padre1;
 	Individuo *p2 = padre2;
-	for (int i = 0; i < num_pixels; i++)
+	for (int i = 0; i < num_pixels; i++) // Paralelizable
 	{
 		// Si estamos en la segunda mitad, los intercambiamos
-		if (i == punto_corte)
+		if (i >= punto_corte) // Hay que poner el mayor para poder paralelizarlo
 		{
 			p1 = padre2;
 			p2 = padre1;
-		}
+		}	
 
 		// Hijo 1
 		hijo1->imagen[i].r = p1->imagen[i].r;
@@ -181,10 +184,33 @@ void fitness(const RGB *objetivo, Individuo *individuo, int num_pixels)
 	// Determina la calidad del individuo (similitud con el objetivo)
 	// calculando la suma de la distancia existente entre los pixeles
 	double fitness = 0.0;
-	for (int i = 0; i < num_pixels; i++)
-	{
-		// Distancia euclídea
-		fitness += sqrt(pow(objetivo[i].r - individuo->imagen[i].r, 2) + pow(objetivo[i].g - individuo->imagen[i].g, 2) + pow(objetivo[i].b - individuo->imagen[i].b, 2));
+	
+	if(strcmp(OMP_FITNESS, "SECUENCIAL") == 0){
+		for (int i = 0; i < num_pixels; i++) // Paralelizable
+		{
+			// Distancia euclídea
+			fitness += sqrt(pow(objetivo[i].r - individuo->imagen[i].r, 2) + pow(objetivo[i].g - individuo->imagen[i].g, 2) + pow(objetivo[i].b - individuo->imagen[i].b, 2));
+		}
+	} else if(strcmp(OMP_FITNESS, "CRITICAL") == 0){
+		#pragma omp parallel for shared(fitness, individuo, objetivo) // serían compartidas las variables: fitness, objetivo e individuo, y privada la variable i
+		for (int i = 0; i < num_pixels; i++) // Paralelizable
+		{
+			#pragma omp critical
+			fitness += sqrt(pow(objetivo[i].r - individuo->imagen[i].r, 2) + pow(objetivo[i].g - individuo->imagen[i].g, 2) + pow(objetivo[i].b - individuo->imagen[i].b, 2));
+		}	
+	} else if(strcmp(OMP_FITNESS, "ATOMIC") == 0){
+		#pragma omp parallel for shared(fitness, individuo, objetivo) // serían compartidas las variables: fitness, objetivo e individuo, y privada la variable i
+		for (int i = 0; i < num_pixels; i++) // Paralelizable
+		{
+			#pragma omp atomic
+			fitness += sqrt(pow(objetivo[i].r - individuo->imagen[i].r, 2) + pow(objetivo[i].g - individuo->imagen[i].g, 2) + pow(objetivo[i].b - individuo->imagen[i].b, 2));
+		}
+	} else if(strcmp(OMP_FITNESS, "REDUCTION") == 0){
+		#pragma omp parallel for reduction(+: fitness)
+		for (int i = 0; i < num_pixels; i++) // Paralelizable
+		{
+			fitness += sqrt(pow(objetivo[i].r - individuo->imagen[i].r, 2) + pow(objetivo[i].g - individuo->imagen[i].g, 2) + pow(objetivo[i].b - individuo->imagen[i].b, 2));
+		}
 	}
 
 	individuo->fitness = fitness;
@@ -201,7 +227,7 @@ void mutar(Individuo *actual, int max, int num_pixels)
 	int num_pixels_mutar = aleatorio(num_pixels * NUM_PIXELS_MUTAR); // 0...NUM_PIXELS_MUTAR%
 
 	// Cambiar el valor de los puntos
-	for (int i = 0; i < num_pixels_mutar; i++)
+	for (int i = 0; i < num_pixels_mutar; i++) // Paralelizable
 	{
 		int pos = aleatorio(num_pixels - 1);
 		actual->imagen[pos].r = aleatorio(max); 
