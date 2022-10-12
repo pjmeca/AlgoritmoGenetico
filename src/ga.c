@@ -8,13 +8,15 @@
 #include "../include/imagen.h"
 #include "../include/ga.h"
 
-#define PRINT 1
+#include "mezclar.c"
+
+#define PRINT 0
 
 #define NUM_PIXELS_MUTAR 0.01
-#define NUM_ITERACIONES_CONVERGENCIA 200 
+#define NUM_ITERACIONES_CONVERGENCIA 200 // número grande para que no salte
 
 #define OMP_FITNESS "REDUCTION"
-#define SCHEDULE_STATIC
+#define SCHEDULE_DYNAMIC
 #define CHUNK_SIZE 4
 
 static int aleatorio(int max)
@@ -48,14 +50,15 @@ RGB *imagen_aleatoria(int max, int total)
 	return imagen;
 }
 
+/*
 static int comp_fitness(const void *a, const void *b)
 {
-	/* qsort pasa un puntero al elemento que está ordenando */
+	// qsort pasa un puntero al elemento que está ordenando 
 	return (*(Individuo **)a)->fitness - (*(Individuo **)b)->fitness;
-}
+}*/
 
 void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alto, int max, int num_generaciones, int tam_poblacion, RGB *imagen_resultado, const char *output_file)
-{
+{	
 	int i, mutation_start, contador_fitness = 0;
 	double fitness_anterior, fitness_actual, diferencia_fitness;
 
@@ -82,7 +85,8 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 	}
 
 	// Ordenar individuos según la función de bondad (menor "fitness" --> más aptos)
-	qsort(poblacion, tam_poblacion, sizeof(Individuo *), comp_fitness);
+	//qsort(poblacion, tam_poblacion, sizeof(Individuo *), comp_fitness);
+	mergeSort(poblacion, 0, tam_poblacion-1);
 
 	// B. Evolucionar la Población (durante un número de generaciones)
 	for (int g = 0; g < num_generaciones; g++)
@@ -109,7 +113,8 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 		}
 	
 		// Ordenar individuos según la función de bondad (menor "fitness" --> más aptos)
-		qsort(poblacion, tam_poblacion, sizeof(Individuo *), comp_fitness);
+		//qsort(poblacion, tam_poblacion, sizeof(Individuo *), comp_fitness);
+		mergeSort(poblacion, 0, tam_poblacion-1);
 
 		// La mejor solución está en la primera posición del array
 		fitness_actual = poblacion[0]->fitness;
@@ -178,26 +183,35 @@ void cruzar(Individuo *padre1, Individuo *padre2, Individuo *hijo1, Individuo *h
 	int punto_corte = aleatorio(num_pixels - 1);
 
 	// Curzamos los genes
-	Individuo *p1 = padre1;
-	Individuo *p2 = padre2;
-	for (int i = 0; i < num_pixels; i++) // Paralelizable
+	#pragma omp parallel sections // no se puede usar nowait (hemos cambiado el orden de los for)
 	{
-		// Si estamos en la segunda mitad, los intercambiamos
-		if (i >= punto_corte) // Hay que poner el mayor para poder paralelizarlo
+		#pragma omp section
+		for (int i = 0; i < punto_corte; i++) // Paralelizable
 		{
-			p1 = padre2;
-			p2 = padre1;
-		}	
+			// Hijo 1
+			hijo1->imagen[i].r = padre1->imagen[i].r;
+			hijo1->imagen[i].g = padre1->imagen[i].g;
+			hijo1->imagen[i].b = padre1->imagen[i].b;
 
-		// Hijo 1
-		hijo1->imagen[i].r = p1->imagen[i].r;
-		hijo1->imagen[i].g = p1->imagen[i].g;
-		hijo1->imagen[i].b = p1->imagen[i].b;
+			// Hijo 2
+			hijo2->imagen[i].r = padre2->imagen[i].r;
+			hijo2->imagen[i].g = padre2->imagen[i].g;
+			hijo2->imagen[i].b = padre2->imagen[i].b;
+		}
 
-		// Hijo 2
-		hijo2->imagen[i].r = p2->imagen[i].r;
-		hijo2->imagen[i].g = p2->imagen[i].g;
-		hijo2->imagen[i].b = p2->imagen[i].b;
+		#pragma omp section
+		for (int i = punto_corte; i < num_pixels; i++) // Paralelizable
+		{
+			// Hijo 1
+			hijo1->imagen[i].r = padre2->imagen[i].r;
+			hijo1->imagen[i].g = padre2->imagen[i].g;
+			hijo1->imagen[i].b = padre2->imagen[i].b;
+
+			// Hijo 2
+			hijo2->imagen[i].r = padre1->imagen[i].r;
+			hijo2->imagen[i].g = padre1->imagen[i].g;
+			hijo2->imagen[i].b = padre1->imagen[i].b;
+		}
 	}
 }
 

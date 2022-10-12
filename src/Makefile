@@ -16,3 +16,4 @@ test_sec:
 
 clean:
 	rm -f $(EXEC)
+	rm -f test_sec.*

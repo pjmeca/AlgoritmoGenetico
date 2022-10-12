@@ -76,6 +76,7 @@ void suavizar(int ancho, int alto, RGB *img, RGB *img_out)
 	// Aplicar tecnica "mean-filter" para suavizar la imagen resultante
 
 	// Usar dos bucles for y muchos if con los 9 casos posibles (4 esquinas, 4 laterales o centro)
+	#pragma omp parallel for shared(img, img_out, ancho, alto) collapse(2)
 	for(int i=0; i<alto*ancho; i+=ancho){ 	// Paralelizable
 		for(int j=0; j<ancho; j++){ 	// Paralelizable
 
