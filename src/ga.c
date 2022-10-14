@@ -86,7 +86,7 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 
 	// Ordenar individuos según la función de bondad (menor "fitness" --> más aptos)
 	//qsort(poblacion, tam_poblacion, sizeof(Individuo *), comp_fitness);
-	mergeSort(poblacion, 0, tam_poblacion-1);
+	mergeSort(poblacion, 0, tam_poblacion);
 
 	// B. Evolucionar la Población (durante un número de generaciones)
 	for (int g = 0; g < num_generaciones; g++)
@@ -114,7 +114,7 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 	
 		// Ordenar individuos según la función de bondad (menor "fitness" --> más aptos)
 		//qsort(poblacion, tam_poblacion, sizeof(Individuo *), comp_fitness);
-		mergeSort(poblacion, 0, tam_poblacion-1);
+		mergeSort(poblacion, 0, tam_poblacion);
 
 		// La mejor solución está en la primera posición del array
 		fitness_actual = poblacion[0]->fitness;
