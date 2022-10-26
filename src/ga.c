@@ -12,6 +12,8 @@
 #define NUM_PIXELS_MUTAR 0.01
 #define NUM_ITERACIONES_CONVERGENCIA 20
 
+#define NGM_PORCENTAJE 0.1
+
 static int aleatorio(int max)
 {
 	return (rand() % (max + 1));
@@ -44,12 +46,14 @@ static int comp_fitness(const void *a, const void *b)
 
 void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alto, int max, int num_generaciones, int tam_poblacion, RGB *imagen_resultado, const char *output_file)
 {
+	// Intercambios MPI
+	int NGM = num_generaciones*NGM_PORCENTAJE
+	int NEM = tam_poblacion>10 ? 10 : 1;
+
 	int i, mutation_start, contador_fitness = 0;
 	double fitness_anterior, fitness_actual, diferencia_fitness;
 
-	// A. Crear Poblacion Inicial (array de imagenes aleatorias)
-	Individuo **poblacion = (Individuo **)malloc(tam_poblacion * sizeof(Individuo *));
-	assert(poblacion);
+	// if name != 0 -> Recibir MPI y ejecutar lo de abajo
 
 	for (i = 0; i < tam_poblacion; i++)
 	{
@@ -88,6 +92,15 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 		for (i = 0; i < tam_poblacion; i++)
 		{
 			fitness(imagen_objetivo, poblacion[i], num_pixels);
+		}
+
+		// Enviar al proceso 0 si NGM
+		if(g%(NGM-1) == 0){
+			// Elegir NEM posiciones y almacenarlas en un array
+			// Enviar MPI al proceso 0
+			// Recibir MPI del proceso 0
+			// Almacenar en cada posicion del array los individuos recibidos
+			// (da igual que quede desordenado por el qsort de abajo)
 		}
 
 		// Ordenar individuos según la función de bondad (menor "fitness" --> más aptos)
@@ -130,7 +143,17 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 			contador_fitness = 0;
 	}
 
+	// Enviar MPI al proceso 0 el mejor individuo (poblacion[0])
+
+	// else 
+	// A. Crear Poblacion Inicial (array de imagenes aleatorias)
+	Individuo **poblacion = (Individuo **)malloc(tam_poblacion * sizeof(Individuo *));
+	assert(poblacion);
+	// -> Enviar MPI y esperar en una función auxiliar
+	// recibir MPI las imagenes y seleccionar la mejor
+
 	// Devuelve Imagen Resultante
+							 // cambiar esta variable para la mejor de todas
 	memmove(imagen_resultado, poblacion[0]->imagen, num_pixels * sizeof(RGB));
 
 	// Release memory
@@ -141,6 +164,8 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 	}
 
 	free(poblacion);
+
+	// fin else
 }
 
 void cruzar(Individuo *padre1, Individuo *padre2, Individuo *hijo1, Individuo *hijo2, int num_pixels)
