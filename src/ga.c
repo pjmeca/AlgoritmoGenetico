@@ -9,7 +9,7 @@
 #include "../include/ga.h"
 #include <unistd.h>
 
-#define PRINT 1
+#define PRINT 0
 
 #define NUM_PIXELS_MUTAR 0.01
 #define NUM_ITERACIONES_CONVERGENCIA 200
@@ -57,6 +57,8 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 
 	int tam_poblacion_proceso = tam_poblacion/p;
+	if (name == p-1)
+		tam_poblacion_proceso += tam_poblacion%p;
 
 	// A. Crear Poblacion Inicial (array de imagenes aleatorias)
 	Individuo** poblacion = (Individuo **)malloc(tam_poblacion_proceso * sizeof(Individuo *));

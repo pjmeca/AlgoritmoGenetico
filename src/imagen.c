@@ -78,10 +78,10 @@ void suavizar(int ancho, int alto, RGB *img, RGB *img_out, MPI_Datatype rgb_type
 	MPI_Comm_rank(MPI_COMM_WORLD, &name);
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 
-	int inicio = name*alto*ancho/p;
+	int inicio = name*(alto*ancho/p);
 	int final;
 	if(name != p-1)
-		final = (name+1)*alto*ancho/p;
+		final = (name+1)*(alto*ancho/p);
 	else
 		final = alto*ancho;
 
@@ -168,9 +168,9 @@ void suavizar(int ancho, int alto, RGB *img, RGB *img_out, MPI_Datatype rgb_type
 	if (name == 0){
 		for (int i=1; i<p; i++){
 			if(i != p-1)
-				MPI_Recv(&img_out[i*alto*ancho/p], ancho*alto/p, rgb_type, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Recv(&img_out[i*(alto*ancho/p)], ancho*alto/p, rgb_type, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			else
-				MPI_Recv(&img_out[i*alto*ancho/p], ancho*alto - (p-1)*alto*ancho/p, rgb_type, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Recv(&img_out[i*(alto*ancho/p)], ancho*alto - i*(alto*ancho/p), rgb_type, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
 	} else {
 		MPI_Send(&img_aux[inicio], final-inicio, rgb_type, 0, 0, MPI_COMM_WORLD);
