@@ -3,14 +3,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #include "../include/imagen.h"
 #include "../include/ga.h"
+#include <unistd.h>
 
-#define PRINT 0
+#define PRINT 1
 
 #define NUM_PIXELS_MUTAR 0.01
-#define NUM_ITERACIONES_CONVERGENCIA 20
+#define NUM_ITERACIONES_CONVERGENCIA 200
 
 #define NGM_PORCENTAJE 0.1
 
@@ -29,45 +31,53 @@ void init_imagen_aleatoria(RGB *imagen, int max, int total)
 	}
 }
 
-RGB *imagen_aleatoria(int max, int total)
-{
-	RGB *imagen = (RGB *)malloc(total * sizeof(RGB));
-	assert(imagen);
-
-	init_imagen_aleatoria(imagen, max, total);
-	return imagen;
-}
-
+// Para comparar punteros a individuos
 static int comp_fitness(const void *a, const void *b)
 {
 	/* qsort pasa un puntero al elemento que está ordenando */
 	return (*(Individuo **)a)->fitness - (*(Individuo **)b)->fitness;
 }
 
-void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alto, int max, int num_generaciones, int tam_poblacion, RGB *imagen_resultado, const char *output_file)
+// Para comparar individuos
+static int comp_fitness2(const void *a, const void *b)
+{
+	/* qsort pasa un puntero al elemento que está ordenando */
+	return (*(Individuo *)a).fitness - (*(Individuo *)b).fitness;
+}
+
+void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alto, int max, int num_generaciones,
+	int tam_poblacion, RGB *imagen_resultado, const char *output_file, MPI_Datatype rgb_type, MPI_Datatype individuo_type)
 {
 	// Intercambios MPI
-	int NGM = num_generaciones*NGM_PORCENTAJE
+	int NGM = num_generaciones*NGM_PORCENTAJE;
 	int NEM = tam_poblacion>10 ? 10 : 1;
+
+	int name, p;
+	MPI_Comm_rank(MPI_COMM_WORLD, &name);
+	MPI_Comm_size(MPI_COMM_WORLD, &p);
+
+	int tam_poblacion_proceso = tam_poblacion/p;
+
+	// A. Crear Poblacion Inicial (array de imagenes aleatorias)
+	Individuo** poblacion = (Individuo **)malloc(tam_poblacion_proceso * sizeof(Individuo *));
+	assert(poblacion);
 
 	int i, mutation_start, contador_fitness = 0;
 	double fitness_anterior, fitness_actual, diferencia_fitness;
 
-	// if name != 0 -> Recibir MPI y ejecutar lo de abajo
-
-	for (i = 0; i < tam_poblacion; i++)
+	for (i = 0; i < tam_poblacion_proceso; i++)
 	{
 		poblacion[i] = (Individuo *)malloc(sizeof(Individuo));
-		poblacion[i]->imagen = imagen_aleatoria(max, num_pixels);
+		init_imagen_aleatoria(poblacion[i]->imagen, max, num_pixels);
 	}
 
-	for (i = 0; i < tam_poblacion; i++)
+	for (i = 0; i < tam_poblacion_proceso; i++)
 	{
 		fitness(imagen_objetivo, poblacion[i], num_pixels);
 	}
 
 	// Ordenar individuos según la función de bondad (menor "fitness" --> más aptos)
-	qsort(poblacion, tam_poblacion, sizeof(Individuo *), comp_fitness);
+	qsort(poblacion, tam_poblacion_proceso, sizeof(Individuo *), comp_fitness);
 
 	// B. Evolucionar la Población (durante un número de generaciones)
 	for (int g = 0; g < num_generaciones; g++)
@@ -75,36 +85,84 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 		fitness_anterior = poblacion[0]->fitness;
 
 		// Promocionar a los descendientes de los individuos más aptos
-		for (i = 0; i < (tam_poblacion / 2) - 1; i += 2)
+		for (i = 0; i < (tam_poblacion_proceso / 2) - 1; i += 2)
 		{
-			cruzar(poblacion[i], poblacion[i + 1], poblacion[tam_poblacion / 2 + i], poblacion[tam_poblacion / 2 + i + 1], num_pixels);
+			cruzar(poblacion[i], poblacion[i + 1], poblacion[tam_poblacion_proceso / 2 + i], poblacion[tam_poblacion_proceso / 2 + i + 1], num_pixels);
 		}
 
 		// Mutar una parte de la individuos de la población (se decide que muten tam_poblacion/4)
-		mutation_start = tam_poblacion / 4;
+		mutation_start = tam_poblacion_proceso / 4;
 
-		for (i = mutation_start; i < tam_poblacion; i++)
+		for (i = mutation_start; i < tam_poblacion_proceso; i++)
 		{
 			mutar(poblacion[i], max, num_pixels);
 		}
 
 		// Recalcular Fitness
-		for (i = 0; i < tam_poblacion; i++)
+		for (i = 0; i < tam_poblacion_proceso; i++)
 		{
 			fitness(imagen_objetivo, poblacion[i], num_pixels);
 		}
 
-		// Enviar al proceso 0 si NGM
+		// Envíos intermedios a P0
 		if(g%(NGM-1) == 0){
-			// Elegir NEM posiciones y almacenarlas en un array
-			// Enviar MPI al proceso 0
-			// Recibir MPI del proceso 0
-			// Almacenar en cada posicion del array los individuos recibidos
-			// (da igual que quede desordenado por el qsort de abajo)
+
+			// Buffer de envío de cada proceso
+			Individuo *sendbuf = malloc(NEM*sizeof(Individuo));
+			Individuo *sendbuf2; 
+			if(name == 0)
+				sendbuf2 = malloc(NEM*p*sizeof(Individuo));
+			else 
+				sendbuf2 = malloc(NEM*sizeof(Individuo));
+
+			// Cada proceso elige NEM posiciones aleatorias y las almacena en un array
+			int* posiciones = malloc(NEM*sizeof(int));
+			for(int i=0; i<NEM; i++){
+				bool contenido = true;
+				int num = aleatorio(tam_poblacion_proceso-1);
+				while(contenido){
+					contenido = false;
+					for(int j = 0; j<i && !contenido; j++){
+						if (posiciones[j]==num){
+							num = aleatorio(tam_poblacion_proceso-1);
+							contenido = true;
+						}
+					}
+				}
+				posiciones[i] = num;
+
+				// Cada proceso mueve los individuos de esas posiciones al buffer de envío
+				memmove(&sendbuf[i], poblacion[num], sizeof(Individuo));
+			}
+
+			// Cada proceso envía al proceso 0 sus individuos
+			MPI_Gather(sendbuf, NEM, individuo_type,
+					   sendbuf2, NEM, individuo_type,
+					   0, MPI_COMM_WORLD);
+
+			// El proceso 0 ordena por el fitness
+			if (name == 0)
+				qsort(sendbuf2, NEM*p, sizeof(Individuo), comp_fitness2);
+
+			// Y envía los mejores a todos los procesos
+			MPI_Bcast(sendbuf2, NEM, individuo_type, 0, MPI_COMM_WORLD);
+
+			// Cada proceso vuelve a colocar los individuos en las posiciones seleccionadas
+			for (int i=0; i<NEM; i++){
+				memmove(poblacion[posiciones[i]], &sendbuf2[i], sizeof(Individuo));
+			}
+
+			// Antes de liberar, tenemos que esperar a que todos los procesos copien
+			MPI_Barrier(MPI_COMM_WORLD);
+
+			// Liberar la memoria
+			free(sendbuf);
+			free(sendbuf2);
+			free(posiciones);
 		}
 
 		// Ordenar individuos según la función de bondad (menor "fitness" --> más aptos)
-		qsort(poblacion, tam_poblacion, sizeof(Individuo *), comp_fitness);
+		qsort(poblacion, tam_poblacion_proceso, sizeof(Individuo *), comp_fitness);
 
 		// La mejor solución está en la primera posición del array
 		fitness_actual = poblacion[0]->fitness;
@@ -143,29 +201,40 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 			contador_fitness = 0;
 	}
 
-	// Enviar MPI al proceso 0 el mejor individuo (poblacion[0])
+	// Recibimos el mejor de cada proceso
+	Individuo *mejores = NULL;
+	if(name == 0) {
+		mejores = malloc(sizeof(Individuo)*p);
+		assert(mejores);
+	}
+	MPI_Gather(poblacion[0], 1, individuo_type,
+		mejores, 1, individuo_type, 0, MPI_COMM_WORLD);
 
-	// else 
-	// A. Crear Poblacion Inicial (array de imagenes aleatorias)
-	Individuo **poblacion = (Individuo **)malloc(tam_poblacion * sizeof(Individuo *));
-	assert(poblacion);
-	// -> Enviar MPI y esperar en una función auxiliar
-	// recibir MPI las imagenes y seleccionar la mejor
+	Individuo *resultado = malloc(sizeof(Individuo));
 
-	// Devuelve Imagen Resultante
-							 // cambiar esta variable para la mejor de todas
-	memmove(imagen_resultado, poblacion[0]->imagen, num_pixels * sizeof(RGB));
+	if(name == 0){
+		// Los ordenamos
+		qsort(mejores, p, sizeof(Individuo), comp_fitness2);
 
-	// Release memory
-	for (i = 0; i < tam_poblacion; i++)
-	{
-		free(poblacion[i]->imagen);
-		free(poblacion[i]);
+		memmove(resultado, mejores[0].imagen, num_pixels * sizeof(RGB));
 	}
 
-	free(poblacion);
+	// Enviamos la mejor imagen al resto de procesos (importante para suavizar)
+	MPI_Bcast(resultado, 1, individuo_type, 0, MPI_COMM_WORLD);
+		
+	// Devuelve Imagen Resultante
+	memmove(imagen_resultado, resultado, num_pixels * sizeof(RGB));	
 
-	// fin else
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	if (name == 0)
+		free(mejores);
+	free(resultado);
+
+	// Release memory
+	for (int i = 0; i < tam_poblacion_proceso; i++)
+		free(poblacion[i]);
+	free(poblacion);
 }
 
 void cruzar(Individuo *padre1, Individuo *padre2, Individuo *hijo1, Individuo *hijo2, int num_pixels)
