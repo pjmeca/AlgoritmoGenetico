@@ -165,13 +165,12 @@ void suavizar(int ancho, int alto, RGB *img, RGB *img_out, MPI_Datatype rgb_type
 		}
 	}
 
-	MPI_Status status;
 	if (name == 0){
 		for (int i=1; i<p; i++){
 			if(i != p-1)
-				MPI_Recv(&img_out[i*alto*ancho/p], ancho*alto/p, rgb_type, i, 0, MPI_COMM_WORLD, &status);
+				MPI_Recv(&img_out[i*alto*ancho/p], ancho*alto/p, rgb_type, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			else
-				MPI_Recv(&img_out[i*alto*ancho/p], ancho*alto - (p-1)*alto*ancho/p, rgb_type, i, 0, MPI_COMM_WORLD, &status);
+				MPI_Recv(&img_out[i*alto*ancho/p], ancho*alto - (p-1)*alto*ancho/p, rgb_type, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
 	} else {
 		MPI_Send(&img_aux[inicio], final-inicio, rgb_type, 0, 0, MPI_COMM_WORLD);
