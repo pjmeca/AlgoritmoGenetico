@@ -1,9 +1,9 @@
 CC = mpicc
 CFLAGS = -O3 -Wall -std=c99 -g -fno-omit-frame-pointer
 
-N_GEN = 100
-T_POB = 100
-N_PROC = 5
+N_GEN = 2000
+T_POB = 256
+N_PROC = 6
 
 EXEC = sec
 OUTFILE = ../output/out.txt
