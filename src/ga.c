@@ -134,20 +134,34 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 				posiciones[i] = num;
 
 				// Cada proceso mueve los individuos de esas posiciones al buffer de envío
-				memmove(&sendbuf[i], poblacion[num], sizeof(Individuo));
+				if (name != 0)
+					memmove(&sendbuf[i], poblacion[num], sizeof(Individuo));
+				else 
+					memmove(&sendbuf2[i], poblacion[num], sizeof(Individuo));
 			}
 
 			// Cada proceso envía al proceso 0 sus individuos
-			MPI_Gather(sendbuf, NEM, individuo_type,
-					   sendbuf2, NEM, individuo_type,
-					   0, MPI_COMM_WORLD);
+			if(name != 0)
+				MPI_Send(sendbuf, NEM, individuo_type,
+					   0, 0, MPI_COMM_WORLD);
+			else 
+				for(int i=1; i<p; i++)
+					MPI_Recv(&sendbuf2[i*NEM], NEM, individuo_type,
+            			MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			
 
 			// El proceso 0 ordena por el fitness
 			if (name == 0)
 				qsort(sendbuf2, NEM*p, sizeof(Individuo), comp_fitness2);
 
 			// Y envía los mejores a todos los procesos
-			MPI_Bcast(sendbuf2, NEM, individuo_type, 0, MPI_COMM_WORLD);
+			if(name == 0)
+				for(int i=1; i<p; i++)
+					MPI_Send(sendbuf2, NEM, individuo_type,
+					   i, 0, MPI_COMM_WORLD);
+			else
+				MPI_Recv(sendbuf2, NEM, individuo_type,
+            			0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 			// Cada proceso vuelve a colocar los individuos en las posiciones seleccionadas
 			for (int i=0; i<NEM; i++){
@@ -203,18 +217,24 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 			contador_fitness = 0;
 	}
 
-	// Recibimos el mejor de cada proceso
+	// Arrays auxiliares
 	Individuo *mejores = NULL;
 	if(name == 0) {
 		mejores = malloc(sizeof(Individuo)*p);
 		assert(mejores);
 	}
-	MPI_Gather(poblacion[0], 1, individuo_type,
-		mejores, 1, individuo_type, 0, MPI_COMM_WORLD);
+	RGB *resultado = malloc(sizeof(Individuo));
 
-	Individuo *resultado = malloc(sizeof(Individuo));
+	// Recibimos el mejor de cada proceso
+	if (name != 0)
+		MPI_Send(poblacion[0], 1, individuo_type,
+			0, 0, MPI_COMM_WORLD);
+	else{
+		memmove(mejores, poblacion[0], sizeof(Individuo));
+		for(int i=1; i<p; i++)
+			MPI_Recv(&mejores[i], 1, individuo_type,
+            	MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-	if(name == 0){
 		// Los ordenamos
 		qsort(mejores, p, sizeof(Individuo), comp_fitness2);
 
@@ -222,7 +242,13 @@ void crear_imagen(const RGB *imagen_objetivo, int num_pixels, int ancho, int alt
 	}
 
 	// Enviamos la mejor imagen al resto de procesos (importante para suavizar)
-	MPI_Bcast(resultado, 1, individuo_type, 0, MPI_COMM_WORLD);
+	if (name != 0)
+		MPI_Recv(resultado, 1, rgb_type,
+            	0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);	
+	else
+		for(int i=1; i<p; i++)
+			MPI_Send(resultado, 1, rgb_type,
+			i, 0, MPI_COMM_WORLD);
 		
 	// Devuelve Imagen Resultante
 	memmove(imagen_resultado, resultado, num_pixels * sizeof(RGB));	
