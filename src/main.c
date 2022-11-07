@@ -91,6 +91,8 @@ int main(int argc, char **argv)
 			printf("Execution Time = %.6lf seconds\n", (tf - ti));
 		#endif
 	}
+	
+	MPI_Barrier(MPI_COMM_WORLD);
 		
 	// Smooth Output Image
 	RGB *img_out = (RGB *) malloc(ancho*alto*sizeof(RGB));
