@@ -1,8 +1,9 @@
-CC = gcc
-CFLAGS = -O3 -Wall -std=c99 -g -fopenmp 
+CC = mpicc
+CFLAGS = -O3 -Wall -std=c99 -g -fno-omit-frame-pointer -fopenmp
 
 N_GEN = 2000
 T_POB = 256
+N_PROC = 6
 
 EXEC = sec
 OUTFILE = ../output/out.txt
@@ -14,6 +15,11 @@ sec: $(C_FILES)
 test_sec:
 	./$(EXEC) ../input/pitufo.ppm ../output/pitufo-out_$(N_GEN)_$(T_POB).ppm $(N_GEN) $(T_POB) >> $(OUTFILE)
 
+test_mpi: sec
+	mpirun -np $(N_PROC) ./$(EXEC) ../input/pitufo.ppm ../output/pitufo-out_$(N_GEN)_$(T_POB).ppm $(N_GEN) $(T_POB) >> $(OUTFILE)
+
+debug_mpi: sec
+	valgrind --tool=memcheck --leak-check=yes --keep-debuginfo=yes mpirun -np $(N_PROC) ./$(EXEC) ../input/pitufo.ppm ../output/pitufo-out_$(N_GEN)_$(T_POB).ppm $(N_GEN) $(T_POB) >> $(OUTFILE)
+
 clean:
 	rm -f $(EXEC)
-	rm -f test_sec.*
