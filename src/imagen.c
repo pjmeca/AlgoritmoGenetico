@@ -71,110 +71,81 @@ void escribir_ppm(const char *fichero, int ancho, int alto, int max, const RGB *
 	fclose(fd);
 }
 
-// Aplicar tecnica "mean-filter" para suavizar la imagen resultante
-void suavizar(int ancho, int alto, RGB *img, RGB *img_out, MPI_Datatype rgb_type)
+void suavizar(int ancho, int alto, RGB *img, RGB *img_out)
 {
-	int name, p;
-	MPI_Comm_rank(MPI_COMM_WORLD, &name);
-	MPI_Comm_size(MPI_COMM_WORLD, &p);
+	// Aplicar tecnica "mean-filter" para suavizar la imagen resultante
 
-	int inicio = name*(alto*ancho/p);
-	int final;
-	if(name != p-1)
-		final = (name+1)*(alto*ancho/p);
-	else
-		final = alto*ancho;
-
-	RGB *img_aux;
-	if (name == 0)
-		img_aux = img_out;
-	else 
-	 	img_aux = (RGB *) malloc(ancho*alto*sizeof(RGB));
 	// Usar dos bucles for y muchos if con los 9 casos posibles (4 esquinas, 4 laterales o centro)
-	#pragma omp parallel for shared(img, img_out, ancho, alto) 
-	for(int i=inicio; i<final; i+=ancho){
-		int limite = (i+ancho) < final ? ancho : (final-i);
-		for(int j=0; j<limite; j++){
+	for(int i=0; i<alto*ancho; i+=ancho){
+		for(int j=0; j<ancho; j++){
 
 			int p[9] = {i+j-ancho-1, i+j-ancho, i+j-ancho+1, i+j-1, i+j, i+j+1, i+j+ancho-1, i+j+ancho, i+j+ancho+1};
 
 			// Esquina superior izquierda
 			if(i+j == 0){
 				//suavizar(imagen, imagen_out, i+j-ancho-1, i+j-ancho, i+j-ancho+1, i+j-1, i+j, i+j+1, i+j+ancho-1, i+j+ancho, i+j+ancho+1);
-				img_aux[i+j].r = (img[p[4]].r+img[p[5]].r+img[p[7]].r+img[p[8]].r)/4;
-				img_aux[i+j].g = (img[p[4]].g+img[p[5]].g+img[p[7]].g+img[p[8]].g)/4;
-				img_aux[i+j].b = (img[p[4]].b+img[p[5]].b+img[p[7]].b+img[p[8]].b)/4;
+				img_out[i+j].r = (img[p[4]].r+img[p[5]].r+img[p[7]].r+img[p[8]].r)/4;
+				img_out[i+j].g = (img[p[4]].g+img[p[5]].g+img[p[7]].g+img[p[8]].g)/4;
+				img_out[i+j].b = (img[p[4]].b+img[p[5]].b+img[p[7]].b+img[p[8]].b)/4;
 			}
 
 			// Esquina superior derecha
 			else if (i+j == ancho-1){
-				img_aux[i+j].r = (img[p[3]].r+img[p[4]].r+img[p[6]].r+img[p[7]].r)/4;
-				img_aux[i+j].g = (img[p[3]].g+img[p[4]].g+img[p[6]].g+img[p[7]].g)/4;
-				img_aux[i+j].b = (img[p[3]].b+img[p[4]].b+img[p[6]].b+img[p[7]].b)/4;
+				img_out[i+j].r = (img[p[3]].r+img[p[4]].r+img[p[6]].r+img[p[7]].r)/4;
+				img_out[i+j].g = (img[p[3]].g+img[p[4]].g+img[p[6]].g+img[p[7]].g)/4;
+				img_out[i+j].b = (img[p[3]].b+img[p[4]].b+img[p[6]].b+img[p[7]].b)/4;
 			}
 
 			// Superior
 			else if (i == 0){
-				img_aux[i+j].r = (img[p[3]].r+img[p[4]].r+img[p[5]].r+img[p[6]].r+img[p[7]].r+img[p[8]].r)/6;
-				img_aux[i+j].g = (img[p[3]].g+img[p[4]].g+img[p[5]].g+img[p[6]].g+img[p[7]].g+img[p[8]].g)/6;
-				img_aux[i+j].b = (img[p[3]].b+img[p[4]].b+img[p[5]].b+img[p[6]].b+img[p[7]].b+img[p[8]].b)/6;
+				img_out[i+j].r = (img[p[3]].r+img[p[4]].r+img[p[5]].r+img[p[6]].r+img[p[7]].r+img[p[8]].r)/6;
+				img_out[i+j].g = (img[p[3]].g+img[p[4]].g+img[p[5]].g+img[p[6]].g+img[p[7]].g+img[p[8]].g)/6;
+				img_out[i+j].b = (img[p[3]].b+img[p[4]].b+img[p[5]].b+img[p[6]].b+img[p[7]].b+img[p[8]].b)/6;
 			}
 
 			// Esquina inferior izquierda
 			else if(j == 0 && i == (alto-1)*ancho){ 
-				img_aux[i+j].r = (img[p[1]].r+img[p[2]].r+img[p[4]].r+img[p[5]].r)/4;
-				img_aux[i+j].g = (img[p[1]].g+img[p[2]].g+img[p[4]].g+img[p[5]].g)/4;
-				img_aux[i+j].b = (img[p[1]].b+img[p[2]].b+img[p[4]].b+img[p[5]].b)/4;
+				img_out[i+j].r = (img[p[1]].r+img[p[2]].r+img[p[4]].r+img[p[5]].r)/4;
+				img_out[i+j].g = (img[p[1]].g+img[p[2]].g+img[p[4]].g+img[p[5]].g)/4;
+				img_out[i+j].b = (img[p[1]].b+img[p[2]].b+img[p[4]].b+img[p[5]].b)/4;
 			}
 
 			// Esquina inferior derecha
 			else if(i+j == alto*ancho-1){
-				img_aux[i+j].r = (img[p[0]].r+img[p[1]].r+img[p[3]].r+img[p[4]].r)/4;
-				img_aux[i+j].g = (img[p[0]].g+img[p[1]].g+img[p[3]].g+img[p[4]].g)/4;
-				img_aux[i+j].b = (img[p[0]].b+img[p[1]].b+img[p[3]].b+img[p[4]].b)/4;
+				img_out[i+j].r = (img[p[0]].r+img[p[1]].r+img[p[3]].r+img[p[4]].r)/4;
+				img_out[i+j].g = (img[p[0]].g+img[p[1]].g+img[p[3]].g+img[p[4]].g)/4;
+				img_out[i+j].b = (img[p[0]].b+img[p[1]].b+img[p[3]].b+img[p[4]].b)/4;
 			}
 
 			// Lateral izquierdo
 			else if(j == 0){
-				img_aux[i+j].r = (img[p[1]].r+img[p[2]].r+img[p[4]].r+img[p[5]].r+img[p[7]].r+img[p[8]].r)/6;
-				img_aux[i+j].g = (img[p[1]].g+img[p[2]].g+img[p[4]].g+img[p[5]].g+img[p[7]].g+img[p[8]].g)/6;
-				img_aux[i+j].b = (img[p[1]].b+img[p[2]].b+img[p[4]].b+img[p[5]].b+img[p[7]].b+img[p[8]].b)/6;
+				img_out[i+j].r = (img[p[1]].r+img[p[2]].r+img[p[4]].r+img[p[5]].r+img[p[7]].r+img[p[8]].r)/6;
+				img_out[i+j].g = (img[p[1]].g+img[p[2]].g+img[p[4]].g+img[p[5]].g+img[p[7]].g+img[p[8]].g)/6;
+				img_out[i+j].b = (img[p[1]].b+img[p[2]].b+img[p[4]].b+img[p[5]].b+img[p[7]].b+img[p[8]].b)/6;
 			}
 
 			// Lateral derecho
 			else if(j == ancho-1){
-				img_aux[i+j].r = (img[p[0]].r+img[p[1]].r+img[p[3]].r+img[p[4]].r+img[p[6]].r+img[p[7]].r)/6;
-				img_aux[i+j].g = (img[p[0]].g+img[p[1]].g+img[p[3]].g+img[p[4]].g+img[p[6]].g+img[p[7]].g)/6;
-				img_aux[i+j].b = (img[p[0]].b+img[p[1]].b+img[p[3]].b+img[p[4]].b+img[p[6]].b+img[p[7]].b)/6;
+				img_out[i+j].r = (img[p[0]].r+img[p[1]].r+img[p[3]].r+img[p[4]].r+img[p[6]].r+img[p[7]].r)/6;
+				img_out[i+j].g = (img[p[0]].g+img[p[1]].g+img[p[3]].g+img[p[4]].g+img[p[6]].g+img[p[7]].g)/6;
+				img_out[i+j].b = (img[p[0]].b+img[p[1]].b+img[p[3]].b+img[p[4]].b+img[p[6]].b+img[p[7]].b)/6;
 			}
 
 			// Inferior
 			else if(i == (alto-1)*ancho){
-				img_aux[i+j].r = (img[p[0]].r+img[p[1]].r+img[p[2]].r+img[p[3]].r+img[p[4]].r+img[p[5]].r)/6;
-				img_aux[i+j].g = (img[p[0]].g+img[p[1]].g+img[p[2]].g+img[p[3]].g+img[p[4]].g+img[p[5]].g)/6;
-				img_aux[i+j].b = (img[p[0]].b+img[p[1]].b+img[p[2]].b+img[p[3]].b+img[p[4]].b+img[p[5]].b)/6;
+				img_out[i+j].r = (img[p[0]].r+img[p[1]].r+img[p[2]].r+img[p[3]].r+img[p[4]].r+img[p[5]].r)/6;
+				img_out[i+j].g = (img[p[0]].g+img[p[1]].g+img[p[2]].g+img[p[3]].g+img[p[4]].g+img[p[5]].g)/6;
+				img_out[i+j].b = (img[p[0]].b+img[p[1]].b+img[p[2]].b+img[p[3]].b+img[p[4]].b+img[p[5]].b)/6;
 			}
 
 			// Centro
 			else{
 				//suavizar(imagen, imagen_out, i+j-ancho-1, i+j-ancho, i+j-ancho+1, i+j-1, i+j, i+j+1, i+j+ancho-1, i+j+ancho, i+j+ancho+1);
-				img_aux[i+j].r = (img[p[0]].r + img[p[1]].r + img[p[2]].r +img[p[3]].r + img[p[4]].r+img[p[5]].r+img[p[6]].r+img[p[7]].r+img[p[8]].r)/9;
-				img_aux[i+j].g = (img[p[0]].g + img[p[1]].g + img[p[2]].g +img[p[3]].g + img[p[4]].g+img[p[5]].g+img[p[6]].g+img[p[7]].g+img[p[8]].g)/9;
-				img_aux[i+j].b = (img[p[0]].b + img[p[1]].b + img[p[2]].b +img[p[3]].b + img[p[4]].b+img[p[5]].b+img[p[6]].b+img[p[7]].b+img[p[8]].b)/9;
+				img_out[i+j].r = (img[p[0]].r + img[p[1]].r + img[p[2]].r +img[p[3]].r + img[p[4]].r+img[p[5]].r+img[p[6]].r+img[p[7]].r+img[p[8]].r)/9;
+				img_out[i+j].g = (img[p[0]].g + img[p[1]].g + img[p[2]].g +img[p[3]].g + img[p[4]].g+img[p[5]].g+img[p[6]].g+img[p[7]].g+img[p[8]].g)/9;
+				img_out[i+j].b = (img[p[0]].b + img[p[1]].b + img[p[2]].b +img[p[3]].b + img[p[4]].b+img[p[5]].b+img[p[6]].b+img[p[7]].b+img[p[8]].b)/9;
 			}
 
 		}
-	}
-
-	if (name == 0){
-		for (int i=1; i<p; i++){
-			if(i != p-1)
-				MPI_Recv(&img_out[i*(alto*ancho/p)], ancho*alto/p, rgb_type, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			else
-				MPI_Recv(&img_out[i*(alto*ancho/p)], ancho*alto - i*(alto*ancho/p), rgb_type, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-		}
-	} else {
-		MPI_Send(&img_aux[inicio], final-inicio, rgb_type, 0, 0, MPI_COMM_WORLD);
-		free(img_aux);
 	}
 }

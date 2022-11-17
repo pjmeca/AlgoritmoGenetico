@@ -1,25 +1,20 @@
-CC = mpicc
-CFLAGS = -O3 -Wall -std=c99 -g -fno-omit-frame-pointer -fopenmp
+CC = gcc
+CFLAGS = -O3 -Wall -std=c99 -g
 
-N_GEN = 2000
-T_POB = 256
-N_PROC = 6
+N_GEN = 0
+T_POB = 16
+N_HILOS_INI = 1
+N_HILOS_FIT = 1
 
-EXEC = sec
+EXEC = omp
 OUTFILE = ../output/out.txt
 C_FILES = main.c imagen.c ga.c
 
-sec: $(C_FILES)
-	$(CC) $(CFLAGS) $(C_FILES) -o $(EXEC) -lm -DTIME -DDEBUG
+omp: $(C_FILES)
+	$(CC) $(CFLAGS) $(C_FILES) -o $(EXEC) -lm -fopenmp -DTIMEGenPobIni
 
-test_sec:
-	./$(EXEC) ../input/pitufo.ppm ../output/pitufo-out_$(N_GEN)_$(T_POB).ppm $(N_GEN) $(T_POB) >> $(OUTFILE)
-
-test_mpi: sec
-	mpirun -np $(N_PROC) ./$(EXEC) ../input/pitufo.ppm ../output/pitufo-out_$(N_GEN)_$(T_POB).ppm $(N_GEN) $(T_POB) >> $(OUTFILE)
-
-debug_mpi: sec
-	valgrind --tool=memcheck --leak-check=yes --keep-debuginfo=yes mpirun -np $(N_PROC) ./$(EXEC) ../input/pitufo.ppm ../output/pitufo-out_$(N_GEN)_$(T_POB).ppm $(N_GEN) $(T_POB) >> $(OUTFILE)
+test_omp:
+	./$(EXEC) ../input/pitufo.ppm ../output/pitufo-out.ppm $(N_GEN) $(T_POB) $(N_HILOS_INI) $(N_HILOS_FIT) >> $(OUTFILE)
 
 clean:
 	rm -f $(EXEC)
