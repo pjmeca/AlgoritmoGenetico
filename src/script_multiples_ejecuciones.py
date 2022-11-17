@@ -30,12 +30,12 @@ def sendCuestion(npr, nth) :
     
     print(str(npr)+": "+str(nth))
     sendScript("script.pbs", npr, nth)
-    time.sleep(250)
+    time.sleep(500)
 
     print("mv ../output/out.txt ../output/"+str(npr)+"_"+str(nth)+".txt")
     subprocess.call(["mv", "../output/out.txt", "../output/"+str(npr)+"_"+str(nth)+".txt"])
 
 for i in numprocesos :
-    nth=18/i
+    nth=maxprocesos/i
     sendCuestion(i, nth)
     
